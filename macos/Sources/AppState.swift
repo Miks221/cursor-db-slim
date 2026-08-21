@@ -152,18 +152,12 @@ final class AppState: ObservableObject {
     private func quitCursorThenApply() async {
         busy = true
         progress = "正在退出 Cursor…"
-        let script = NSAppleScript(source: "tell application \"Cursor\" to quit")
-        var err: NSDictionary?
-        script?.executeAndReturnError(&err)
-        for _ in 0..<40 {
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            if !Self.isCursorRunning() { break }
-        }
+        await Self.quitCursorMain()
         refreshMeta()
         if Self.isCursorRunning() {
             busy = false
             progress = ""
-            errorText = "Cursor 仍在运行，请手动 Cmd+Q 后再试。"
+            errorText = "Cursor 主进程仍在运行，请手动 Cmd+Q 后再试。"
             return
         }
         await apply()
@@ -237,18 +231,12 @@ final class AppState: ObservableObject {
     private func quitThenSnapshot() async {
         busy = true
         progress = "正在退出 Cursor…"
-        let script = NSAppleScript(source: "tell application \"Cursor\" to quit")
-        var err: NSDictionary?
-        script?.executeAndReturnError(&err)
-        for _ in 0..<40 {
-            try? await Task.sleep(nanoseconds: 250_000_000)
-            if !Self.isCursorRunning() { break }
-        }
+        await Self.quitCursorMain()
         refreshMeta()
         if Self.isCursorRunning() {
             busy = false
             progress = ""
-            errorText = "Cursor 仍在运行，请手动 Cmd+Q 后再备份。"
+            errorText = "Cursor 主进程仍在运行，请手动 Cmd+Q 后再备份。"
             return
         }
         await runSnapshot()
@@ -274,6 +262,17 @@ final class AppState: ObservableObject {
         busy = false
     }
 
+    static func quitCursorMain() async {
+        for app in cursorMainApps() {
+            app.terminate()
+        }
+        NSAppleScript(source: "tell application \"Cursor\" to quit")?.executeAndReturnError(nil)
+        for _ in 0..<40 {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            if !isCursorRunning() { break }
+        }
+    }
+
     private func alert(title: String, message: String, primary: String, style: NSAlert.Style, onOK: @escaping () -> Void) {
         let a = NSAlert()
         a.messageText = title
@@ -286,22 +285,15 @@ final class AppState: ObservableObject {
         }
     }
 
-    static func isCursorRunning() -> Bool {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        p.arguments = ["-lf", "Cursor.app"]
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = FileHandle.nullDevice
-        try? p.run()
-        p.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let out = String(data: data, encoding: .utf8) ?? ""
-        return out.split(separator: "\n").contains { line in
-            let s = String(line)
-            return s.contains("Cursor.app")
-                && !s.contains("CursorDBCleaner")
-                && !s.contains("Cursor 数据库清理")
+    static func cursorMainApps() -> [NSRunningApplication] {
+        NSWorkspace.shared.runningApplications.filter { app in
+            guard let url = app.bundleURL else { return false }
+            return url.lastPathComponent == "Cursor.app"
+                && app.activationPolicy == .regular
         }
+    }
+
+    static func isCursorRunning() -> Bool {
+        !cursorMainApps().isEmpty
     }
 }

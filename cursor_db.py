@@ -98,13 +98,24 @@ def connect_ro(path: str) -> sqlite3.Connection:
 
 
 def cursor_is_running() -> list[str]:
+    """只认 Cursor 主进程，忽略 Helper / crashpad。"""
     try:
         out = subprocess.run(
-            ["pgrep", "-fl", "Cursor.app"], capture_output=True, text=True, timeout=15
+            ["pgrep", "-fl", "Cursor.app/Contents/MacOS/Cursor"],
+            capture_output=True,
+            text=True,
+            timeout=15,
         ).stdout.strip()
     except Exception:
         return []
-    return [l for l in out.splitlines() if l.strip()]
+    return [
+        l
+        for l in out.splitlines()
+        if l.strip()
+        and "Cursor.app/Contents/MacOS/Cursor" in l
+        and "Cursor Helper" not in l
+        and "CursorDBCleaner" not in l
+    ]
 
 
 def db_holders(path: str) -> list[str]:

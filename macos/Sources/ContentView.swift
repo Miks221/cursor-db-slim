@@ -137,7 +137,7 @@ struct ContentView: View {
                     .font(.system(size: 20, weight: .medium, design: .rounded))
                     .monospacedDigit()
                 HStack(spacing: 6) {
-                    Text(state.cursorRunning ? "Cursor 运行中" : "Cursor 已退出")
+                    Text(state.cursorRunning ? "Cursor 主程序在运行" : "Cursor 主程序已退出")
                         .foregroundStyle(state.cursorRunning ? Color.orange : Color.secondary)
                     Text("·")
                         .foregroundStyle(.tertiary)
