@@ -70,7 +70,7 @@ struct ContentView: View {
             .padding(.top, 10)
 
             if state.backups.isEmpty {
-                Text("清理时会自动把原库改成带时间戳的备份。空间够时也可以在这里再复制一份。")
+                Text("清理时会自动把原库改成带时间戳的备份。空间够时也可以在这里再复制一份。清理完成后请先打开 Cursor 确认正常，再删备份。")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)

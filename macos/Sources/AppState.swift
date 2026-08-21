@@ -92,7 +92,7 @@ final class AppState: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorText = error.localizedDescription
+                    self.errorText = friendlyError(error)
                     self.progress = ""
                     self.busy = false
                 }
@@ -102,7 +102,7 @@ final class AppState: ObservableObject {
 
     func confirmAndApply() {
         guard let report else {
-            errorText = "请先做一次预估。"
+            errorText = "请先点「预估」，确认要清理多少后再清理。"
             return
         }
         refreshMeta()
@@ -112,7 +112,7 @@ final class AppState: ObservableObject {
         if canSnapshot {
             alert(
                 title: "确认清理",
-                message: sizeLine + "\n原库会改名为带时间戳的备份，可在「备份」页删除。",
+                message: sizeLine + "\n原库会改名为带时间戳的备份，可在「备份」页删除。清理完成后若提示打不开库，一般可以忽略，先打开 Cursor 看会话和登录是否还在。",
                 primary: "开始清理",
                 style: .warning
             ) { [weak self] in
@@ -157,7 +157,7 @@ final class AppState: ObservableObject {
         if Self.isCursorRunning() {
             busy = false
             progress = ""
-            errorText = "Cursor 主进程仍在运行，请手动 Cmd+Q 后再试。"
+            errorText = "Cursor 还没完全退出。请用菜单里的退出或 Cmd+Q（不要只关窗口）后再试。"
             return
         }
         await apply()
@@ -181,13 +181,14 @@ final class AppState: ObservableObject {
             refreshMeta()
             verify = result
             if result.integrityOK && result.nonTextKeys == 0 {
-                doneText = "完成。新库 \(humanSize(result.fileSize))，会话 \(result.headerCount) 条，KV \(result.kvCount) 行，integrity_check=ok。登录：\(result.email ?? "无")。原库已列入「备份」页，确认正常后再删。"
+                let account = result.email ?? "未检测到"
+                doneText = "清理完成。新库 \(humanSize(result.fileSize))，保留 \(result.headerCount) 条会话。登录账号：\(account)。原库已出现在「备份」页，先打开 Cursor 确认正常，再删备份。"
                 backups = BackupStore.items(beside: path)
             } else {
-                errorText = "清理后校验未完全通过：integrity=\(result.integrityOK)，非 TEXT 键 \(result.nonTextKeys)。"
+                errorText = "新库已经换上，但复查没完全通过（完整性\(result.integrityOK ? "通过" : "未通过")，非文本键 \(result.nonTextKeys) 个）。先打开 Cursor 看会话和登录是否还在，先别删备份。"
             }
         } catch {
-            errorText = error.localizedDescription
+            errorText = friendlyError(error)
         }
         progress = ""
         busy = false
@@ -204,14 +205,14 @@ final class AppState: ObservableObject {
                 try BackupStore.delete(item)
                 self?.refreshMeta()
             } catch {
-                self?.errorText = error.localizedDescription
+                self?.errorText = friendlyError(error)
             }
         }
     }
 
     func snapshotNow() {
         guard canSnapshot else {
-            errorText = "剩余 \(humanSize(freeSpace))，再复制一份当前库大约需要 \(humanSize(BackupStore.snapshotNeed(dbSize: dbSize)))。"
+            errorText = "磁盘不够再复制一份。剩余 \(humanSize(freeSpace))，完整备份大约需要 \(humanSize(BackupStore.snapshotNeed(dbSize: dbSize)))。清理时仍会把原库改名留下。"
             return
         }
         if Self.isCursorRunning() {
@@ -236,7 +237,7 @@ final class AppState: ObservableObject {
         if Self.isCursorRunning() {
             busy = false
             progress = ""
-            errorText = "Cursor 主进程仍在运行，请手动 Cmd+Q 后再备份。"
+            errorText = "Cursor 还没完全退出。请用菜单里的退出或 Cmd+Q（不要只关窗口）后再备份。"
             return
         }
         await runSnapshot()
@@ -253,10 +254,10 @@ final class AppState: ObservableObject {
                 Task { @MainActor in self.progress = line }
             }
             refreshMeta()
-            doneText = "已备份到 \(URL(fileURLWithPath: dest).lastPathComponent)（\(humanSize(dbSize))）。"
+            doneText = "备份完成：\(URL(fileURLWithPath: dest).lastPathComponent)（\(humanSize(dbSize))）。可在「备份」页查看或删除。"
             tab = .backups
         } catch {
-            errorText = error.localizedDescription
+            errorText = friendlyError(error)
         }
         progress = ""
         busy = false

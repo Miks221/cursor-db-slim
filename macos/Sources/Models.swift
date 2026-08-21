@@ -171,6 +171,27 @@ enum EngineError: LocalizedError {
     }
 }
 
+func friendlyError(_ error: Error) -> String {
+    friendlySQLite(error.localizedDescription)
+}
+
+func friendlySQLite(_ raw: String) -> String {
+    let lower = raw.lowercased()
+    if lower.contains("unable to open database file") {
+        return "打不开这个库文件。如果备份或清理已经走完，新库多半已经就位，直接打开 Cursor 看会话和登录即可。若 Cursor 也打不开，把同目录的 state.vscdb-wal 和 state.vscdb-shm 先挪到别处再试。"
+    }
+    if lower.contains("database is locked") || lower.contains("database is busy") {
+        return "库正被占用。请确认 Cursor 已完全退出（菜单里退出，不要只关窗口）后再试。"
+    }
+    if lower.contains("disk i/o error") || (lower.contains("disk") && lower.contains("full")) {
+        return "磁盘读写失败或空间不够，写不完新库或备份。"
+    }
+    if raw.hasPrefix("打开数据库失败：") {
+        return friendlySQLite(String(raw.dropFirst("打开数据库失败：".count)))
+    }
+    return raw
+}
+
 func humanSize(_ n: Int64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB"]
     var v = Double(n)

@@ -6,22 +6,19 @@ final class SQLiteBox {
 
     func open(_ path: String, readonly: Bool) throws {
         close()
-        let uri: String
-        let flags: Int32
-        if readonly {
-            let enc = path.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? path
-            uri = "file:\(enc)?mode=ro"
-            flags = SQLITE_OPEN_READONLY | SQLITE_OPEN_URI
-        } else {
-            uri = path
-            flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE
-        }
-        let rc = sqlite3_open_v2(uri, &db, flags, nil)
+        // WAL 库用 mode=ro 时无法创建 -shm，会误报 unable to open database file。
+        // 已有文件一律读写打开；只读场景再开 query_only，避免改数据。
+        var flags = SQLITE_OPEN_READWRITE
+        if !readonly { flags |= SQLITE_OPEN_CREATE }
+        let rc = sqlite3_open_v2(path, &db, flags, nil)
         if rc != SQLITE_OK {
             let msg = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "open failed"
-            throw EngineError.message("打开数据库失败：\(msg)")
+            throw EngineError.message(friendlySQLite(msg))
         }
         try exec("PRAGMA busy_timeout=120000")
+        if readonly {
+            try exec("PRAGMA query_only=ON")
+        }
     }
 
     func close() {
@@ -39,7 +36,7 @@ final class SQLiteBox {
         if rc != SQLITE_OK {
             let msg = err.map { String(cString: $0) } ?? "exec failed"
             sqlite3_free(err)
-            throw EngineError.message(msg)
+            throw EngineError.message(friendlySQLite(msg))
         }
     }
 
@@ -69,7 +66,7 @@ final class SQLiteBox {
         var stmt: OpaquePointer?
         let rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nil)
         if rc != SQLITE_OK {
-            throw EngineError.message(String(cString: sqlite3_errmsg(db)))
+            throw EngineError.message(friendlySQLite(String(cString: sqlite3_errmsg(db))))
         }
         return stmt
     }

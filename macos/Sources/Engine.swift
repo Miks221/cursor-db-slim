@@ -227,14 +227,14 @@ actor Engine {
         }
 
         progress("[4/5] 校验新库 …")
-        let verify = try verifyOpen(dst, filePath: out)
-        if !verify.integrityOK {
+        let verified = try verifyOpen(dst, filePath: out)
+        if !verified.integrityOK {
             src.close(); dst.close()
-            throw EngineError.message("新库 integrity_check 失败，原库未动")
+            throw EngineError.message("新库完整性检查没通过，原库没有改动。")
         }
-        if verify.nonTextKeys > 0 {
+        if verified.nonTextKeys > 0 {
             src.close(); dst.close()
-            throw EngineError.message("新库仍有 \(verify.nonTextKeys) 个非 TEXT 键，已中止")
+            throw EngineError.message("新库里还有 \(verified.nonTextKeys) 个非文本键，已中止，原库没有改动。")
         }
         try dst.exec("PRAGMA journal_mode=WAL")
         src.close()
@@ -242,7 +242,11 @@ actor Engine {
 
         progress("[5/5] 就位 …")
         try swapIn(dbPath: dbPath, newPath: out, backupSuffix: ".bak-\(BackupStore.stamp())")
-        return try verifyPath(dbPath)
+        var result = verified
+        result.fileSize =
+            (try? FileManager.default.attributesOfItem(atPath: dbPath)[.size] as? NSNumber)?.int64Value
+            ?? verified.fileSize
+        return result
     }
 
     func createSnapshot(dbPath: String, progress: @escaping @Sendable (String) -> Void) throws -> String {
