@@ -10,7 +10,6 @@ struct CleanFilter: Equatable {
     var rangeStart = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
     var rangeEnd = Date()
     var followSubagents = true
-    var dropAgentBlobs = true
     var cleanDrafts = false
     var cleanWorktree = false
     var cleanSpec = false

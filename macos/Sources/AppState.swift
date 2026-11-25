@@ -77,9 +77,10 @@ final class AppState: ObservableObject {
         Task {
             do {
                 let cls = try await engine.classify(dbPath: path, filter: filter)
-                let (rows, bytes, stats, dropped) = try await engine.measure(
-                    dbPath: path, keep: cls.keep, dropBlobs: filter.dropAgentBlobs
+                let (rows, bytes, stats, plan) = try await engine.measure(
+                    dbPath: path, keep: cls.keep, purge: cls.purge
                 )
+                let dropped = plan.dropKeys.count
                 let projected = Int64(Double(bytes) * 1.15)
                 await MainActor.run {
                     self.report = DryRunReport(
@@ -170,10 +171,9 @@ final class AppState: ObservableObject {
         doneText = nil
         progress = "开始清理…"
         let path = dbPath
-        let keep = report.classify.keep
-        let drop = filter.dropAgentBlobs
+        let purge = report.classify.purge
         do {
-            let result = try await engine.apply(dbPath: path, keep: keep, dropBlobs: drop) { line in
+            let result = try await engine.apply(dbPath: path, purge: purge) { line in
                 Task { @MainActor in
                     self.progress = line
                 }

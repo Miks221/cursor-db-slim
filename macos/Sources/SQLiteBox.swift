@@ -30,6 +30,10 @@ final class SQLiteBox {
 
     deinit { close() }
 
+    var lastError: String {
+        db.map { String(cString: sqlite3_errmsg($0)) } ?? ""
+    }
+
     func exec(_ sql: String) throws {
         var err: UnsafeMutablePointer<CChar>?
         let rc = sqlite3_exec(db, sql, nil, nil, &err)

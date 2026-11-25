@@ -32,5 +32,4 @@ python3 cursor_db.py repair --apply
 必须先完全退出 Cursor。原库会改名为带时间戳的备份，可在应用的「备份」页删除。
 
 `prune` 在原库里直接删，先克隆一份 `.pre-prune`，核对失败自动换回，适合定期跑。
-`agentKv:blob` 是会话检查点，不能整段丢：`prune` 和 `slim` 默认只删被清理会话独占的块。
-macOS 应用目前仍按旧逻辑整段丢弃 `agentKv`，清理后保留的会话可能报 "conversation's data is missing"，修好之前请用命令行。
+`agentKv:blob` 是会话检查点，不能整段丢：`prune`、`slim` 和 macOS 应用都只删被清理会话独占的块，保留会话引用到的块缺一个就中止。

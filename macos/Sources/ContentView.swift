@@ -186,7 +186,6 @@ struct ContentView: View {
             label("其它")
             VStack(alignment: .leading, spacing: 6) {
                 Toggle("子代理跟随父会话：父删子删，父留子留", isOn: $state.filter.followSubagents)
-                Toggle("丢掉代理缓存（界面聊天还在，磁盘记录也还在）", isOn: $state.filter.dropAgentBlobs)
                 Toggle("只保留某段日期内有更新的会话", isOn: $state.filter.useDateRange)
                 if state.filter.useDateRange {
                     HStack(spacing: 8) {
@@ -224,7 +223,7 @@ struct ContentView: View {
                 if c.tooOld.count > 0 { Text("创建过早 \(c.tooOld.count)") }
                 if c.outOfRange.count > 0 { Text("日期外 \(c.outOfRange.count)") }
                 if c.drafts.count > 0 { Text("草稿 \(c.drafts.count)") }
-                if r.droppedBlobRows > 0 { Text("缓存 \(r.droppedBlobRows) 行") }
+                if r.droppedBlobRows > 0 { Text("检查点块 \(r.droppedBlobRows) 个") }
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
